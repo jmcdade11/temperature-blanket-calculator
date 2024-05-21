@@ -32,6 +32,22 @@ class WeatherCache:
             return converted_blanket_nodes_dict
         except Exception as e:
             print("Unable to load cache file: ", e)
+    
+    def write_to_cache(self):
+        try:
+            cache_file = Path(self.cache_path)
+            cache_file.parent.mkdir(parents=True, exist_ok=True)
+            for key in self.blanket_nodes_dict.keys():
+                month_blanket_nodes_json = []
+                for day in self.blanket_nodes_dict[key]:
+                    day_json = day.to_json()
+                    month_blanket_nodes_json.append(day_json)
+                self.blanket_nodes_dict[key] = month_blanket_nodes_json
+            with open(self.cache_path, 'w', encoding='utf-8') as f:
+                json.dump(self.blanket_nodes_dict, f, ensure_ascii=False, indent=4)
+        except Exception as e:
+            print("Unable to write out to cache file: ", e)
+        self.blanket_nodes_dict = self.load_from_cache()
 
     def cache_is_empty(self):
         return not self.blanket_nodes_dict
@@ -63,22 +79,18 @@ class WeatherCache:
                 selected_temp = min_c
             else:
                 selected_temp = max_c
-            month_blanket_nodes.append(BlanketNode(weather_date, max_c, min_c, selected_temp).to_json())
+            month_blanket_nodes.append(BlanketNode(weather_date, max_c, min_c, selected_temp))
         self.blanket_nodes_dict[month_num] = month_blanket_nodes
     
-    def write_to_cache(self):
-        try:
-            cache_file = Path(self.cache_path)
-            cache_file.parent.mkdir(parents=True, exist_ok=True)
-            with open(self.cache_path, 'w', encoding='utf-8') as f:
-                json.dump(self.blanket_nodes_dict, f, ensure_ascii=False, indent=4)
-        except Exception as e:
-            print("Unable to write out to cache file: ", e)
-        self.blanket_nodes_dict = self.load_from_cache()
-
-    def fill_weekly_cache(self):
-        pass
-
+    def fill_missing_months_cache(self):
+        last_cached_month = list(self.blanket_nodes_dict.keys())[-1]
+        yesterday = self.get_yesterday()
+        if yesterday.month != last_cached_month:
+            months = self.get_missing_months(last_cached_month + 1)
+            for month in months:
+                self.fill_monthly_cache(month)
+            self.write_to_cache()
+    
     def get_ip(self):
         try:
             with urlopen("https://ident.me") as public_ip_response:
@@ -99,8 +111,7 @@ class WeatherCache:
 
         try:
             with urlopen(url) as response:
-                body = response.read()
-                
+                body = response.read()         
             weather_json = json.loads(body)
         except Exception as e:
             print("Error when calling weather api: ", e)

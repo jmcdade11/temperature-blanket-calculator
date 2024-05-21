@@ -10,8 +10,14 @@ def main():
         cache.write_to_cache()
         print(cache.blanket_nodes_dict[1])
     else:
-        print("lol")
-        print(cache.blanket_nodes_dict[1])
+        last_cached_month = list(cache.blanket_nodes_dict.keys())[-1]
+        yesterday = cache.get_yesterday()
+        if yesterday.month != last_cached_month:
+            months = cache.get_missing_months(last_cached_month + 1)
+            for month in months:
+                print(f"filling in month: {month}")
+                cache.fill_monthly_cache(month)
+            cache.write_to_cache()
 
 if __name__ == '__main__':
     main()

@@ -1,10 +1,24 @@
 from blanket_node import BlanketNode
 from datetime import date, datetime, timedelta
+from pathlib import Path
+import shutil
 import unittest
 import uuid
 from weather_cache import WeatherCache
 
 class TestWeatherCache(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.clear_cache()
+    
+    @classmethod
+    def tearDownClass(cls):
+        cls.clear_cache()
+
+    def clear_cache():
+        dirpath = Path("cache")
+        if dirpath.exists() and dirpath.is_dir():
+            shutil.rmtree(dirpath)
 
     def get_yesterday(self):
         today = date.today()
@@ -26,7 +40,7 @@ class TestWeatherCache(unittest.TestCase):
     def test_write_to_cache(self):
         cache = WeatherCache()
         cache.cache_path = self.get_cache_path()
-        test_dict_json = {1: [BlanketNode("2024-01-01", "10", "1", "10").to_json()]}
+        test_dict_json = {1: [BlanketNode("2024-01-01", "10", "1", "10")]}
         cache.blanket_nodes_dict = test_dict_json
         cache.write_to_cache()
         test_dict = {1: [BlanketNode("2024-01-01", "10", "1", "10")]}
@@ -35,13 +49,12 @@ class TestWeatherCache(unittest.TestCase):
     def test_fill_yearly_cache(self):
         total_months = self.get_total_months()
         yesterday = self.get_yesterday()
-        
+
         cache = WeatherCache()
         cache.cache_path = self.get_cache_path()
         cache.api_key = cache.get_api_key()
         cache.blanket_nodes_dict = {}
 
-       
         self.assertTrue(cache.cache_is_empty(), "The weather cache is not empty")
         cache.fill_yearly_cache()
         cache.write_to_cache()
@@ -85,7 +98,35 @@ class TestWeatherCache(unittest.TestCase):
         self.assertEqual(jan_days, len(cache.blanket_nodes_dict[1]))
 
     def test_fill_monthly_cache_this_month(self):
-        pass
+        yesterday = self.get_yesterday()
+ 
+        cache = WeatherCache()
+        cache.cache_path = self.get_cache_path()
+        cache.api_key = cache.get_api_key()
+        cache.blanket_nodes_dict = {}
+       
+        cache.fill_monthly_cache(yesterday.month)
+        cache.write_to_cache()
+
+        self.assertEqual(1, len(cache.blanket_nodes_dict))
+        self.assertEqual(yesterday.day, len(cache.blanket_nodes_dict[yesterday.month]))
+
+    def test_fill_missing_months_cache(self):
+        yesterday = self.get_yesterday()
+ 
+        cache = WeatherCache()
+        cache.cache_path = self.get_cache_path()
+        cache.api_key = cache.get_api_key()
+        cache.blanket_nodes_dict = {}
+       
+        cache.fill_monthly_cache(1)
+        cache.write_to_cache()
+        cache.fill_missing_months_cache()
+        cache.write_to_cache()
+
+        self.assertEqual(yesterday.month, len(cache.blanket_nodes_dict))
+        self.assertEqual(yesterday.day, len(cache.blanket_nodes_dict[yesterday.month]))
+
         
 if __name__ == '__main__':
     unittest.main()
