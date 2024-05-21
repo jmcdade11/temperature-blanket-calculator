@@ -1,3 +1,4 @@
+import sys
 from blanket_node import BlanketNode
 from calendar import monthrange
 from datetime import date, timedelta
@@ -7,7 +8,8 @@ from pathlib import Path
 from urllib.request import urlopen
 
 class WeatherCache:
-    def __init__(self):
+    def __init__(self, colour_index):
+        self.colour_index = colour_index
         self.cache_path = None
         self.api_key = None
         self.blanket_nodes_dict = {}
@@ -32,6 +34,7 @@ class WeatherCache:
             return converted_blanket_nodes_dict
         except Exception as e:
             print("Unable to load cache file: ", e)
+            sys.exit()
     
     def write_to_cache(self):
         try:
@@ -47,6 +50,7 @@ class WeatherCache:
                 json.dump(self.blanket_nodes_dict, f, ensure_ascii=False, indent=4)
         except Exception as e:
             print("Unable to write out to cache file: ", e)
+            sys.exit()
         self.blanket_nodes_dict = self.load_from_cache()
 
     def cache_is_empty(self):
@@ -73,13 +77,24 @@ class WeatherCache:
         weather_json = self.call_weather_api(self.ip, beginning_date, end_date, self.api_key)
         for i in range(month_last_day):
             weather_date = weather_json["data"]["weather"][i]["date"]
-            min_c = weather_json["data"]["weather"][i]["mintempC"]
-            max_c = weather_json["data"]["weather"][i]["maxtempC"]
-            if (abs(int(min_c)) > abs(int(max_c))):
+            min_c = int(weather_json["data"]["weather"][i]["mintempC"])
+            max_c = int(weather_json["data"]["weather"][i]["maxtempC"])
+            if (abs(min_c) > abs(max_c)):
                 selected_temp = min_c
             else:
                 selected_temp = max_c
-            month_blanket_nodes.append(BlanketNode(weather_date, max_c, min_c, selected_temp))
+            found_colour = "None"
+            for colour_search in self.colour_index.colour_ranges:
+                if colour_search.low <= selected_temp <= colour_search.high:
+                    found_colour = colour_search.colour
+            if found_colour == "None":
+                hottest = self.colour_index.colour_ranges[0]
+                coldest = self.colour_index.colour_ranges[-1]
+                if selected_temp > hottest.high:
+                    found_colour = hottest.colour
+                if selected_temp < coldest.low:
+                    found_colour = coldest.colour        
+            month_blanket_nodes.append(BlanketNode(weather_date, max_c, min_c, selected_temp, found_colour))
         self.blanket_nodes_dict[month_num] = month_blanket_nodes
     
     def fill_missing_months_cache(self):
@@ -89,7 +104,6 @@ class WeatherCache:
             months = self.get_missing_months(last_cached_month + 1)
             for month in months:
                 self.fill_monthly_cache(month)
-            self.write_to_cache()
     
     def get_ip(self):
         try:
@@ -98,7 +112,7 @@ class WeatherCache:
             return my_ip
         except Exception as e:
             print("Could not fetch our public IP for weather api usage: ", e)
-            exit()
+            sys.exit()
 
     def get_api_key(self):
         api_key = os.environ.get("WEATHER_BLANKET_API_KEY")
@@ -115,6 +129,7 @@ class WeatherCache:
             weather_json = json.loads(body)
         except Exception as e:
             print("Error when calling weather api: ", e)
+            sys.exit()
         return weather_json
 
     def get_yesterday(self):
