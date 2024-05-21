@@ -74,7 +74,6 @@ def generate_report(template_path, dest_path, cache):
         dest_file_writer.write(template_content)
 
 def main():
-    #TODO: some sort of structure for storing monthly colour counts, aggregate up to yearly counts
     try:
         if len(sys.argv) > 1:
             index = sys.argv[1]
