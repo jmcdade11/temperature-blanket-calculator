@@ -1,4 +1,5 @@
 import calendar
+from datetime import datetime
 import os
 from pathlib import Path
 import sys
@@ -12,19 +13,54 @@ def generate_report(template_path, dest_path, cache):
     new_line = '\n'
     blanket_nodes_dict = cache.blanket_nodes_dict
     for month in blanket_nodes_dict.keys():
+        monthly_colour_count = {}
         month_name = calendar.month_name[month]
         report_str += f'<button type="button" class="collapsible">{month_name}</button>{new_line}'
         report_str += f'<div class="content">'
+        report_str += f"""
+<table>
+    <tr>
+        <th>Day</th>
+        <th>High</th>
+        <th>Low</th>
+        <th>Selected Temp</th>
+        <th>Colour</th>
+    </tr>
+"""
         for month_day in blanket_nodes_dict[month]:
+            converted_date = datetime.strptime(month_day.date, '%Y-%m-%d')
+            day_number = converted_date.day
             content_node = f"""
-    <p>
-    High: {month_day.high}
-    Low: {month_day.low}
-    Selected Temp: {month_day.selected_temp}
-    Colour: {month_day.colour}
-    </p>
+<tr>
+    <td>{day_number}</td>
+    <td>{month_day.high}</td>
+    <td>{month_day.low}</td>
+    <td>{month_day.selected_temp}</td>
+    <td>{month_day.colour}</td>
+</tr>
 """
             report_str += content_node
+            if month_day.colour not in monthly_colour_count:
+                monthly_colour_count[month_day.colour] = 1
+            else:
+                monthly_colour_count[month_day.colour] += 1
+        report_str += f'</table>{new_line}'
+        report_str += f'<h3>Monthly colour report</h3>'
+        report_str += f"""
+<table>
+    <tr>
+        <th>Colour</th>
+        <th>Count</th>
+    </tr>
+"""
+        for colour in monthly_colour_count.keys():
+            report_str += f"""
+<tr>
+    <td>{colour}</td>
+    <td>{monthly_colour_count[colour]}</td>
+</tr>
+"""
+        report_str += f'</table>{new_line}'
         report_str += f'</div>{new_line}'
   
     with open(template_path) as template_file:
