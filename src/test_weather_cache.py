@@ -5,7 +5,6 @@ from pathlib import Path
 import shutil
 import unittest
 import uuid
-from src.colour_index import ColourIndex
 from weather_cache import WeatherCache
 
 class TestWeatherCache(unittest.TestCase):
